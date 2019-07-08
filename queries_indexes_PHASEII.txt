@@ -1,0 +1,47 @@
+SELECT DISTINCT company_name, MAX((((close_price - adj_close_price) / close_price) * 100)) AS MaxPercentageChange
+FROM company
+JOIN historical_stock_price ON historical_stock_price.ticker = company.ticker
+WHERE CAST(stock_date as varchar) > '2000-01-01'  AND CAST(stock_date as varchar) < '2018-12-31'
+AND (((close_price - adj_close_price) / close_price) * 100) >= 15 
+GROUP BY company_name
+ORDER BY MaxPercentageChange;
+
+
+SELECT DISTINCT company_name, AVG(open_price) AS AvgOpenPrice
+FROM company
+JOIN historical_stock_price ON  historical_stock_price.ticker = company.ticker
+WHERE CAST(stock_date as varchar) > '1980-01-01'  AND CAST(stock_date as varchar) < '2018-12-31'
+AND company_name ilike '%Limited' OR company_name ilike '%inc' 
+GROUP BY company_name
+HAVING avg(open_price) > 30;
+
+
+SELECT company_name, sec.name, hist.high_price - hist.low_price AS diffInPrediction FROM company AS comp join sector AS sec ON comp.sector = sec.id
+JOIN historical_stock_price AS hist ON comp.ticker = hist.ticker
+WHERE sec.name ilike 'Technology' AND hist.high_price - hist.low_price < 0.02
+ORDER BY company_name;
+
+
+SELECT company_name, volume FROM company AS comp JOIN sector AS sec ON comp.sector = sec.id
+JOIN historical_stock_price AS hist ON comp.ticker = hist.ticker
+WHERE comp.exchange ilike 'NASDAQ' AND sec.name ilike 'Health Care'
+AND (((close_price - adj_close_price) / close_price) * 100) >= 50
+ORDER BY volume desc;
+
+
+SELECT DISTINCT comp.company_name, MAX(hist.close_price - hist.open_price) AS MaxLoss , ((Max(hist.close_price - hist.open_price))*hist.volume) AS MaxAmountLoss 
+FROM industry AS ind 
+JOIN company AS comp on ind.id = comp.industry
+JOIN historical_stock_price AS hist ON hist.ticker = comp.ticker
+WHERE CAST(hist.stock_date AS varchar) > '2015-01-01' AND CAST(hist.stock_date AS varchar) < '2018-01-01'
+AND ind.name ilike 'Integrated Oil Companies'
+GROUP BY comp.company_name, hist.volume
+ORDER BY MaxLoss desc;
+
+
+CREATE INDEX ticker_idx ON company (ticker);
+CREATE INDEX ticker_hist_idx ON historical_stock_price (ticker);
+CREATE INDEX company_name_idx ON company USING GIN (company_name gin_trgm_ops)
+CREATE INDEX sector_name_idx ON sector USING GIN (name gin_trgm_ops)
+CREATE INDEX company_exchange_idx ON company USING GIN (exchange gin_trgm_ops)
+CREATE INDEX industry_name_idx ON industry USING GIN (name gin_trgm_ops)
